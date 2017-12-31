@@ -1,0 +1,7 @@
+*.txt
+*.pyc
+*.swp
+*.pdf
+*.ipynb
+DeepMoji/
+input/
