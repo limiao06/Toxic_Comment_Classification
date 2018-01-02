@@ -119,7 +119,9 @@ def finetuning_callbacks(checkpoint_path, patience, verbose):
                                    save_best_only=True, verbose=cb_verbose)
     earlystop = EarlyStopping(monitor='val_loss', patience=patience,
                               verbose=cb_verbose)
-    return [checkpointer, earlystop]
+    csv_logger = CSVLogger('training.log')
+    
+    return [checkpointer, earlystop, csv_logger]
 
 
 def freeze_layers(model, unfrozen_types=[], unfrozen_keyword=None):
