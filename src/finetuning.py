@@ -290,7 +290,7 @@ def sampling_generator(X_in, y_in, batch_size, epoch_size=25000,
 
 def finetune(model, texts, labels, nb_classes, batch_size, method,
              metric='acc', epoch_size=5000, nb_epochs=1000,
-             error_checking=True, verbose=1):
+             patience=5, error_checking=True, verbose=1):
     """ Compiles and finetunes the given model.
 
     # Arguments:
@@ -367,6 +367,7 @@ def finetune(model, texts, labels, nb_classes, batch_size, method,
                             batch_size=batch_size, loss=loss,
                             epoch_size=epoch_size,
                             nb_epochs=nb_epochs,
+                            patience=patience
                             checkpoint_weight_path=checkpoint_path,
                             evaluate=metric, verbose=verbose)
     else:
@@ -376,6 +377,7 @@ def finetune(model, texts, labels, nb_classes, batch_size, method,
                                 epoch_size=epoch_size,
                                 nb_epochs=nb_epochs,
                                 batch_size=batch_size,
+                                patience=patience,
                                 checkpoint_weight_path=checkpoint_path,
                                 evaluate=metric, verbose=verbose)
     return model, result
