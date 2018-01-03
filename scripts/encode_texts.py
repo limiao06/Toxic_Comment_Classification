@@ -7,6 +7,7 @@ from __future__ import print_function, division
 import sys
 import os
 import json
+import pickle
 import csv
 import numpy as np
 from deepmoji.sentence_tokenizer import SentenceTokenizer
