@@ -20,7 +20,7 @@ def get_model(maxlen, weight_path=None, return_attention=False):
                                   maxlen=maxlen,
                                   return_attention=return_attention)
 
-    if not weight_path:
+    if weight_path:
         load_specific_weights(model, weight_path, exclude_names=['softmax'])
     return model
 
