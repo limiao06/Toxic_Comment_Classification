@@ -14,12 +14,12 @@ from __future__ import print_function
 import json
 from model import get_model
 from deepmoji.global_variables import PRETRAINED_PATH, VOCAB_PATH
-from global_variables import OUTPUT_LABELS, NB_OUTPUT_CLASSES
+from global_variables import OUTPUT_LABELS, NB_OUTPUT_CLASSES, DATA_DIR
 from finetuning import (
     load_benchmark,
     finetune)
 
-DATASET_PATH = '../input/'
+DATASET_PATH = DATA_DIR
 nb_classes = NB_OUTPUT_CLASSES
 epoch_size = 86265
 maxlen = 150

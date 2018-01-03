@@ -9,6 +9,7 @@ OUTPUT_LABELS = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identi
 NB_OUTPUT_CLASSES = 6
 
 WEIGHTS_DIR = '{}/model/'.format(ROOT_PATH)
+DATA_DIR = '{}/input/'.format(ROOT_PATH)
 """
 VOCAB_PATH = '{}/model/vocabulary.json'.format(ROOT_PATH)
 PRETRAINED_PATH = '{}/model/deepmoji_weights.hdf5'.format(ROOT_PATH)
