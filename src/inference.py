@@ -48,7 +48,7 @@ def main():
         st = SentenceTokenizer(vocab, maxlen)
 
         print("Tokenizing dataset ...")
-        texts = [st.tokenize_sentences(s)[0] for s in texts]
+        texts = st.tokenize_sentences(texts)[0]
         print("Finish Tokenizing.")
 
         data = {'texts': texts,
@@ -58,7 +58,7 @@ def main():
             pickle.dump(data, output)
 
     # predict
-    preds = model.predict(data['texts'])
+    preds = model.predict(data['texts'], batch_size=100, verbose=1)
 
     # output
     submid = pd.DataFrame({'id': data["id"]})
