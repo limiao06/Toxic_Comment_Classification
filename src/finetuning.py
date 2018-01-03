@@ -121,7 +121,7 @@ def finetuning_callbacks(checkpoint_path, patience, verbose):
                               verbose=cb_verbose)
 
     ckpt_name, ckpt_ext = os.path.splitext(checkpoint_path)
-    csv_logger = CSVLogger(os.path.join(ckpt_name, ".log"))
+    csv_logger = CSVLogger(ckpt_name + ".log")
     
     return [checkpointer, earlystop, csv_logger]
 
