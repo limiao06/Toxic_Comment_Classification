@@ -6,4 +6,5 @@
 *.ipynb
 DeepMoji/
 input/
+output/
 model/

@@ -33,6 +33,6 @@ data = load_benchmark(DATASET_PATH, vocab, maxlen=maxlen)
 # Set up model and finetune
 model = get_model(maxlen, PRETRAINED_PATH)
 model, acc = finetune(model, data['texts'], data['labels'], nb_classes,
-                      data['batch_size'], method='last', patience=8
-                      epoch_size=epoch_size, nb_epochs=100)
+                      data['batch_size'], method='last', patience=8,
+                      epoch_size=epoch_size, nb_epochs=100, verbose=2)
 print('Acc: {}'.format(acc))
