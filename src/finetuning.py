@@ -367,7 +367,7 @@ def finetune(model, texts, labels, nb_classes, batch_size, method,
                             batch_size=batch_size, loss=loss,
                             epoch_size=epoch_size,
                             nb_epochs=nb_epochs,
-                            patience=patience
+                            patience=patience,
                             checkpoint_weight_path=checkpoint_path,
                             evaluate=metric, verbose=verbose)
     else:
