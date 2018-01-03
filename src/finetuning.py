@@ -6,7 +6,7 @@ from __future__ import print_function
 import sys, os
 import uuid
 from time import sleep
-
+import copy
 import h5py
 import math
 import pickle
@@ -260,9 +260,13 @@ def sampling_generator(X_in, y_in, batch_size, epoch_size=25000,
     # Keep looping until training halts
     while True:
         if not upsample:
-
-            # Randomly sample observations in a balanced way
-            sample_ind = np.random.choice(ind, epoch_size, replace=True)
+            if epoch_size > len(ind): 
+                # Randomly sample observations in a balanced way
+                sample_ind = np.random.choice(ind, epoch_size, replace=True)
+            else:
+                sample_ind = copy.copy(ind)
+                np.random.shuffle(sample_ind)
+                sample_ind = sample_ind[:epoch_size]
             X, y = X_in[sample_ind], y_in[sample_ind]
 
         else:
