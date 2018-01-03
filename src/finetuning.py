@@ -119,7 +119,9 @@ def finetuning_callbacks(checkpoint_path, patience, verbose):
                                    save_best_only=True, verbose=cb_verbose)
     earlystop = EarlyStopping(monitor='val_loss', patience=patience,
                               verbose=cb_verbose)
-    csv_logger = CSVLogger('training.log')
+
+    ckpt_name, ckpt_ext = os.path.splitext(checkpoint_path)
+    csv_logger = CSVLogger(os.path.join(ckpt_name, ".log"))
     
     return [checkpointer, earlystop, csv_logger]
 
@@ -330,7 +332,7 @@ def finetune(model, texts, labels, nb_classes, batch_size, method,
     (X_train, y_train) = (texts[0], labels[0])
     (X_val, y_val) = (texts[1], labels[1])
 
-    checkpoint_path = '{}/deepmoji-checkpoint-{}.hdf5' \
+    checkpoint_path = '{}/toxic-deepmoji-checkpoint-{}.hdf5' \
                       .format(WEIGHTS_DIR, str(uuid.uuid4()))
 
     if method in ['last', 'new']:
