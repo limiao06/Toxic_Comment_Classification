@@ -28,10 +28,8 @@ from deepmoji.tokenizer import tokenize
 from deepmoji.sentence_tokenizer import SentenceTokenizer
 from deepmoji.attlayer import AttentionWeightedAverage
 
-from global_variables import OUTPUT_LABELS, NB_OUTPUT_CLASSES, WEIGHTS_DIR
+from global_variables import OUTPUT_LABELS, NB_OUTPUT_CLASSES
 
-
-print(WEIGHTS_DIR)
 
 def load_dataset(file):
     print("Load dataset: {}".format(file))
@@ -294,7 +292,7 @@ def sampling_generator(X_in, y_in, batch_size, epoch_size=25000,
             yield (X[start:end], y[start:end])
 
 
-def finetune(model, texts, labels, nb_classes, batch_size, method,
+def finetune(model, out_path, texts, labels, nb_classes, batch_size, method,
              metric='acc', epoch_size=5000, nb_epochs=1000,
              patience=5, error_checking=True, verbose=1):
     """ Compiles and finetunes the given model.
@@ -332,8 +330,7 @@ def finetune(model, texts, labels, nb_classes, batch_size, method,
     (X_train, y_train) = (texts[0], labels[0])
     (X_val, y_val) = (texts[1], labels[1])
 
-    checkpoint_path = '{}/toxic-deepmoji-checkpoint-{}.hdf5' \
-                      .format(WEIGHTS_DIR, str(uuid.uuid4()))
+    checkpoint_path = '{}/checkpoint.hdf5'.format(out_path)
 
     if method in ['last', 'new']:
         lr = 0.001
