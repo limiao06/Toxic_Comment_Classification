@@ -31,7 +31,8 @@ def main():
     parser.add_argument('--batch_size', dest='batch_size', type=int, default=128, help='batch_size.')
     parser.add_argument('--maxlen', dest='maxlen', type=int, default=150, help='Max len of the input sentence.')
     parser.add_argument('--patience', dest='patience', type=int, default=5, help='Patience for early stopping.')
-    parser.add_argument('--method', dest='method', default='last', help='The finetune method. [last]')
+    parser.add_argument('--lr', dest='lr', type=float, default=None, help='Learning rate.')
+    parser.add_argument('--method', dest='method', default='last', help='The finetune method. [last, chain-thaw]')
     args = parser.parse_args()
 
     print(vars(args))
@@ -48,8 +49,16 @@ def main():
     with open(VOCAB_PATH, 'r') as f:
         vocab = json.load(f)
 
+    if args.method == "chain-thaw":
+        extend_with = 10000
+    elif args.method == "last":
+        extend_with = 0
+
     # Load dataset.
-    data = load_benchmark(DATA_DIR, vocab, maxlen=args.maxlen, batch_size=args.batch_size)
+    data = load_benchmark(DATA_DIR, args.output, vocab,
+                          maxlen=args.maxlen,
+                          batch_size=args.batch_size,
+                          extend_with=extend_with)
 
     # Set up model and finetune
     model = get_model(args.maxlen, PRETRAINED_PATH)
@@ -60,6 +69,7 @@ def main():
                           nb_classes=NB_OUTPUT_CLASSES,
                           batch_size=data['batch_size'],
                           method=args.method,
+                          lr=args.lr,
                           patience=args.patience,
                           epoch_size=args.epoch_size,
                           nb_epochs=args.nb_epochs, verbose=2)

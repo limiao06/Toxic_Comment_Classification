@@ -10,6 +10,7 @@ import copy
 import h5py
 import math
 import pickle
+import json
 import pandas as pd
 import numpy as np
 
@@ -40,7 +41,7 @@ def load_dataset(file):
     return texts, labels
 
 
-def load_benchmark(path, vocab, maxlen=200, batch_size=50):
+def load_benchmark(path, out_path, vocab, maxlen=200, batch_size=50, extend_with=0):
     """ Loads the given benchmark dataset.
 
         Tokenizes the texts using the provided vocabulary, extending it with
@@ -52,6 +53,7 @@ def load_benchmark(path, vocab, maxlen=200, batch_size=50):
 
     # Arguments:
         path: Path to the dataset to be loaded.
+        out_path: Path to save the extended vocab
         vocab: Vocabulary to be used for tokenizing texts.
         extend_with: If > 0, the vocabulary will be extended with up to
             extend_with tokens from the training set before tokenizing.
@@ -67,7 +69,11 @@ def load_benchmark(path, vocab, maxlen=200, batch_size=50):
             maxlen: Maximum length of an input.
     """
     # Pre-processing dataset
-    data_path = os.path.join(path, "train_dev_data.pkl")
+    if extend_with == 0:
+        data_path = os.path.join(path, "train_dev_data.pkl")
+    elif extend_with > 0:
+        data_path = os.path.join(path, "train_dev_data.extend_vocab.pkl")
+
     if os.path.exists(data_path):
         print("load existing data ... ")
         with open(data_path) as input:
@@ -84,13 +90,28 @@ def load_benchmark(path, vocab, maxlen=200, batch_size=50):
 
         st = SentenceTokenizer(vocab, maxlen)
 
+        added = 0
+        # Extend vocabulary with training set tokens
+        if extend_with > 0:
+            wg = WordGenerator(texts[0],
+                                allow_unicode_text=True,
+                                ignore_emojis=False,
+                                remove_variation_selectors=True,
+                                break_replacement=True)
+            vb = VocabBuilder(wg)
+            vb.count_all_words()
+            added = extend_vocab(st.vocabulary, vb, max_tokens=extend_with)
+            print("Extend vocabulary with {} tokens".format(added))
+            with open(os.path.join(out_path, 'extended_vocabulary.json'),'w') as input:
+                json.dump(st.vocabulary, input, indent=4)
+
         print("Tokenizing dataset ...")
         texts = [st.tokenize_sentences(s)[0] for s in texts]
         print("Finish Tokenizing.")
 
         data = {'texts': texts,
             'labels': labels,
-            'added': 0,
+            'added': added,
             'batch_size': batch_size,
             'maxlen': maxlen}
         with open(data_path, 'w') as output:
@@ -120,7 +141,7 @@ def finetuning_callbacks(checkpoint_path, patience, verbose):
 
     ckpt_name, ckpt_ext = os.path.splitext(checkpoint_path)
     csv_logger = CSVLogger(ckpt_name + ".log")
-    
+
     return [checkpointer, earlystop, csv_logger]
 
 
@@ -159,13 +180,9 @@ def change_trainable(layer, trainable, verbose=False):
     if type(layer) == Bidirectional:
         layer.backward_layer.trainable = trainable
         layer.forward_layer.trainable = trainable
-        print(layer.name, layer.backward_layer.trainable, layer.forward_layer.trainable)
-    
 
     if type(layer) == TimeDistributed:
         layer.backward_layer.trainable = trainable
-
-    layer.trainable = trainable
 
     if verbose:
         action = 'Unfroze' if trainable else 'Froze'
@@ -260,7 +277,7 @@ def sampling_generator(X_in, y_in, batch_size, epoch_size=25000,
     # Keep looping until training halts
     while True:
         if not upsample:
-            if epoch_size > len(ind): 
+            if epoch_size > len(ind):
                 # Randomly sample observations in a balanced way
                 sample_ind = np.random.choice(ind, epoch_size, replace=True)
             else:
@@ -293,7 +310,7 @@ def sampling_generator(X_in, y_in, batch_size, epoch_size=25000,
 
 
 def finetune(model, out_path, texts, labels, nb_classes, batch_size, method,
-             metric='acc', epoch_size=5000, nb_epochs=1000,
+             lr=None, metric='acc', epoch_size=5000, nb_epochs=1000,
              patience=5, error_checking=True, verbose=1):
     """ Compiles and finetunes the given model.
 
@@ -332,10 +349,11 @@ def finetune(model, out_path, texts, labels, nb_classes, batch_size, method,
 
     checkpoint_path = '{}/checkpoint.hdf5'.format(out_path)
 
-    if method in ['last', 'new']:
-        lr = 0.001
-    elif method in ['full', 'chain-thaw']:
-        lr = 0.0001
+    if not lr:
+        if method in ['last', 'new']:
+            lr = 0.001
+        elif method in ['full', 'chain-thaw']:
+            lr = 0.0001
 
     """
     def multi_label_loss(y_true, y_pred):
@@ -430,7 +448,6 @@ def tune_trainable(model, nb_classes, train, val, epoch_size,
                         validation_steps=steps,
                         callbacks=callbacks, verbose=(verbose >= 2))
 
-    
     # Reload the best weights found to avoid overfitting
     # Wait a bit to allow proper closing of weights file
     sleep(1)
@@ -443,7 +460,6 @@ def tune_trainable(model, nb_classes, train, val, epoch_size,
     elif evaluate == 'weighted_f1':
         return evaluate_using_weighted_f1(model, X_test, y_test, X_val, y_val,
                                           batch_size=batch_size)
-    
 
 
 def evaluate_using_weighted_f1(model, X_test, y_test, X_val, y_val,
@@ -519,15 +535,17 @@ def chain_thaw(model, nb_classes, train, val, batch_size,
     X_train, y_train = train
     X_val, y_val = val
 
+    """
     if nb_classes > 2:
         y_train = to_categorical(y_train)
         y_val = to_categorical(y_val)
+    """
 
     if verbose:
         print('Training..')
 
     # Use sample generator for fixed-size epoch
-    train_gen = sampling_generator(X_train, y_train, batch_size,
+    train_gen = sampling_generator(X_train, y_train, batch_size, epoch_size,
                                    upsample=False, seed=seed)
     callbacks = finetuning_callbacks(checkpoint_weight_path, patience, verbose)
 
@@ -538,13 +556,11 @@ def chain_thaw(model, nb_classes, train, val, batch_size,
                         checkpoint_weight_path=checkpoint_weight_path,
                         batch_size=batch_size, verbose=verbose)
 
-    
     if evaluate == 'acc':
         return evaluate_using_acc(model, X_val, y_val, batch_size=batch_size)
     elif evaluate == 'weighted_f1':
         return evaluate_using_weighted_f1(model, X_test, y_test, X_val, y_val,
                                           batch_size=batch_size)
-    
 
 
 def train_by_chain_thaw(model, train_gen, val_data, loss, callbacks, epoch_size,
