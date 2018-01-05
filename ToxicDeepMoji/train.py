@@ -32,6 +32,9 @@ def main():
     parser.add_argument('--maxlen', dest='maxlen', type=int, default=150, help='Max len of the input sentence.')
     parser.add_argument('--patience', dest='patience', type=int, default=5, help='Patience for early stopping.')
     parser.add_argument('--lr', dest='lr', type=float, default=None, help='Learning rate.')
+    parser.add_argument('--embed_dropout_rate', dest='embed_dropout_rate', type=float, default=0.25, help='Embed dropout rate.')
+    parser.add_argument('--final_dropout_rate', dest='final_dropout_rate', type=float, default=0.5, help='Final dropout rate.')
+    parser.add_argument('--embed_l2', dest='embed_l2', type=float, default=0.0, help='embed_l2.')
     parser.add_argument('--method', dest='method', default='last', help='The finetune method. [last, chain-thaw]')
     args = parser.parse_args()
 
@@ -61,7 +64,12 @@ def main():
                           extend_with=extend_with)
 
     # Set up model and finetune
-    model = get_model(args.maxlen, PRETRAINED_PATH)
+    model = get_model(args.maxlen, PRETRAINED_PATH,
+                      extend_embedding=data['added'],
+                      embed_dropout_rate=args.embed_dropout_rate,
+                      final_dropout_rate=args.final_dropout_rate,
+                      embed_l2=args.embed_l2)
+ 
     model, acc = finetune(model=model,
                           out_path=args.output,
                           texts=data['texts'],

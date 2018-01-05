@@ -7,4 +7,4 @@ MODEL_DIR="${DIR}/../model"
 CODE_DIR="${DIR}/../ToxicDeepMoji"
 
 
-CUDA_VISIBLE_DEVICES=1 python ${CODE_DIR}/train.py ${MODEL_DIR}/chain-thaw-model --method chain-thaw --patience 5
+CUDA_VISIBLE_DEVICES=0 python ${CODE_DIR}/train.py ${MODEL_DIR}/chain-thaw-model --method chain-thaw --patience 5
