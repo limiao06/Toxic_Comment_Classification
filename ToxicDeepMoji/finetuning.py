@@ -11,6 +11,7 @@ import h5py
 import math
 import pickle
 import json
+from collections import OrderedDict
 import pandas as pd
 import numpy as np
 
@@ -28,6 +29,8 @@ from deepmoji.global_variables import (
 from deepmoji.tokenizer import tokenize
 from deepmoji.sentence_tokenizer import SentenceTokenizer
 from deepmoji.attlayer import AttentionWeightedAverage
+from deepmoji.create_vocab import extend_vocab, VocabBuilder
+from deepmoji.word_generator import WordGenerator
 
 from global_variables import OUTPUT_LABELS, NB_OUTPUT_CLASSES
 
@@ -103,7 +106,10 @@ def load_benchmark(path, out_path, vocab, maxlen=200, batch_size=50, extend_with
             added = extend_vocab(st.vocabulary, vb, max_tokens=extend_with)
             print("Extend vocabulary with {} tokens".format(added))
             with open(os.path.join(out_path, 'extended_vocabulary.json'),'w') as input:
-                json.dump(st.vocabulary, input, indent=4)
+                out_dict = OrderedDict()
+                for key, value in sorted(st.vocabulary.items(), key=lambda x:x[1]):
+                    out_dict[key]=value
+                json.dump(out_dict, input, indent=4)
 
         print("Tokenizing dataset ...")
         texts = [st.tokenize_sentences(s)[0] for s in texts]
@@ -362,7 +368,7 @@ def finetune(model, out_path, texts, labels, nb_classes, batch_size, method,
         r_y_pred = K.reshape(y_pred, shape=(-1,1))
         return NB_OUTPUT_CLASSES * K.binary_crossentropy(r_y_true, r_y_pred)
     """
-    multi_label_loss = 'binary_crossentropy'
+    loss = 'binary_crossentropy'
 
     # Freeze layers if using last
     if method == 'last':
@@ -371,7 +377,7 @@ def finetune(model, out_path, texts, labels, nb_classes, batch_size, method,
     # Compile model, for chain-thaw we compile it later (after freezing)
     if method != 'chain-thaw':
         adam = Adam(clipnorm=1, lr=lr)
-        model.compile(loss=multi_label_loss, optimizer=adam, metrics=['accuracy'])
+        model.compile(loss=loss, optimizer=adam, metrics=['accuracy'])
 
     # Training
     if verbose:
