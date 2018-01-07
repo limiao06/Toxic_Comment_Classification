@@ -20,6 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description='Inference.')
     parser.add_argument('model_path', help='The path of the model')
     parser.add_argument('output', help='The output')
+    parser.add_argument('--batch_size', dest='batch_size', type=int, default=100, help='batch_size.')
     args = parser.parse_args()
 
     # load config
@@ -71,7 +72,7 @@ def main():
             pickle.dump(data, output)
 
     # predict
-    preds = model.predict(data['texts'], batch_size=100, verbose=1)
+    preds = model.predict(data['texts'], batch_size=args.batch_size, verbose=1)
 
     # output
     submid = pd.DataFrame({'id': data["id"]})
