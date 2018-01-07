@@ -26,17 +26,19 @@ def main():
     with open(os.path.join(args.model_path, 'model_config.json')) as input:
         config = json.load(input)
 
-    # load model
     maxlen = config['maxlen']
-    model = get_model(maxlen)
-    model.load_weights(os.path.join(args.model_path, 'checkpoint.hdf5'), by_name=False)
 
-    
     if config['method'] == 'chain-thaw':
         VOCAB_PATH = os.path.join(DATA_DIR, "extended_vocabulary.json")
+        extend_embedding = 10000
         data_path = os.path.join(DATA_DIR, "test_data_ml{}.extend_vocab.pkl".format(maxlen))
     elif config['method'] == 'last':
         data_path = os.path.join(DATA_DIR, "test_data_ml{}.pkl".format(maxlen))
+        extend_embedding = 0
+    
+    # load model
+    model = get_model(maxlen, extend_embedding=extend_embedding)
+    model.load_weights(os.path.join(args.model_path, 'checkpoint.hdf5'), by_name=False)
     
     # load vocab
     with open(VOCAB_PATH, 'r') as f:
