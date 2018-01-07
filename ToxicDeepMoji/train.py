@@ -58,7 +58,7 @@ def main():
         extend_with = 0
 
     # Load dataset.
-    data = load_benchmark(DATA_DIR, args.output, vocab,
+    data = load_benchmark(DATA_DIR, vocab,
                           maxlen=args.maxlen,
                           batch_size=args.batch_size,
                           extend_with=extend_with)

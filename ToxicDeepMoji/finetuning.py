@@ -44,7 +44,7 @@ def load_dataset(file):
     return texts, labels
 
 
-def load_benchmark(path, out_path, vocab, maxlen=200, batch_size=50, extend_with=0):
+def load_benchmark(path, vocab, maxlen=200, batch_size=50, extend_with=0):
     """ Loads the given benchmark dataset.
 
         Tokenizes the texts using the provided vocabulary, extending it with
@@ -56,7 +56,6 @@ def load_benchmark(path, out_path, vocab, maxlen=200, batch_size=50, extend_with
 
     # Arguments:
         path: Path to the dataset to be loaded.
-        out_path: Path to save the extended vocab
         vocab: Vocabulary to be used for tokenizing texts.
         extend_with: If > 0, the vocabulary will be extended with up to
             extend_with tokens from the training set before tokenizing.
@@ -105,7 +104,7 @@ def load_benchmark(path, out_path, vocab, maxlen=200, batch_size=50, extend_with
             vb.count_all_words()
             added = extend_vocab(st.vocabulary, vb, max_tokens=extend_with)
             print("Extend vocabulary with {} tokens".format(added))
-            with open(os.path.join(out_path, 'extended_vocabulary.json'),'w') as input:
+            with open(os.path.join(path, 'extended_vocabulary.json'),'w') as input:
                 out_dict = OrderedDict()
                 for key, value in sorted(st.vocabulary.items(), key=lambda x:x[1]):
                     out_dict[key]=value

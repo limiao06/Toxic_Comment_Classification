@@ -31,12 +31,18 @@ def main():
     model = get_model(maxlen)
     model.load_weights(os.path.join(args.model_path, 'checkpoint.hdf5'), by_name=False)
 
+    
+    if config['method'] == 'chain-thaw':
+        VOCAB_PATH = os.path.join(DATA_DIR, "extended_vocabulary.json")
+        data_path = os.path.join(DATA_DIR, "test_data_ml{}.extend_vocab.pkl".format(maxlen))
+    elif config['method'] == 'last':
+        data_path = os.path.join(DATA_DIR, "test_data_ml{}.pkl".format(maxlen))
+    
     # load vocab
     with open(VOCAB_PATH, 'r') as f:
         vocab = json.load(f)
 
     # load data
-    data_path = os.path.join(DATA_DIR, "test_data_ml{}.pkl".format(maxlen))
     if os.path.exists(data_path):
         print("load existing tokenized data ... ")
         with open(data_path) as input:
