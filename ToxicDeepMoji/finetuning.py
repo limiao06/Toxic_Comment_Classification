@@ -126,7 +126,7 @@ def load_benchmark(path, vocab, maxlen=200, batch_size=50, extend_with=0):
 
 
 
-def finetuning_callbacks(checkpoint_path, patience, verbose):
+def finetuning_callbacks(checkpoint_path, patience, monitor, verbose):
     """ Callbacks for model training.
 
     # Arguments:
@@ -139,9 +139,9 @@ def finetuning_callbacks(checkpoint_path, patience, verbose):
         model.fit() or similar.
     """
     cb_verbose = (verbose >= 2)
-    checkpointer = ModelCheckpoint(monitor='val_loss', filepath=checkpoint_path,
+    checkpointer = ModelCheckpoint(monitor=monitor, filepath=checkpoint_path,
                                    save_best_only=True, verbose=cb_verbose)
-    earlystop = EarlyStopping(monitor='val_loss', patience=patience,
+    earlystop = EarlyStopping(monitor=monitor, patience=patience,
                               verbose=cb_verbose)
 
     ckpt_name, ckpt_ext = os.path.splitext(checkpoint_path)
@@ -316,7 +316,7 @@ def sampling_generator(X_in, y_in, batch_size, epoch_size=25000,
 
 def finetune(model, out_path, texts, labels, nb_classes, batch_size, method,
              lr=None, metric='acc', epoch_size=5000, nb_epochs=1000,
-             patience=5, error_checking=True, verbose=1):
+             patience=5, monitor='val_loss', error_checking=True, verbose=1):
     """ Compiles and finetunes the given model.
 
     # Arguments:
@@ -394,6 +394,7 @@ def finetune(model, out_path, texts, labels, nb_classes, batch_size, method,
                             epoch_size=epoch_size,
                             nb_epochs=nb_epochs,
                             patience=patience,
+                            monitor=monitor,
                             checkpoint_weight_path=checkpoint_path,
                             evaluate=metric, verbose=verbose)
     else:
@@ -404,6 +405,7 @@ def finetune(model, out_path, texts, labels, nb_classes, batch_size, method,
                                 nb_epochs=nb_epochs,
                                 batch_size=batch_size,
                                 patience=patience,
+                                monitor=monitor,
                                 checkpoint_weight_path=checkpoint_path,
                                 evaluate=metric, verbose=verbose)
     return model, result
@@ -411,7 +413,7 @@ def finetune(model, out_path, texts, labels, nb_classes, batch_size, method,
 
 def tune_trainable(model, nb_classes, train, val, epoch_size,
                    nb_epochs, batch_size, checkpoint_weight_path,
-                   patience=5, evaluate='acc', verbose=1):
+                   patience=5, monitor='val_loss', evaluate='acc', verbose=1):
     """ Finetunes the given model using the accuracy measure.
 
     # Arguments:
@@ -445,7 +447,7 @@ def tune_trainable(model, nb_classes, train, val, epoch_size,
     train_gen = sampling_generator(X_train, y_train, batch_size,
                                    epoch_size=epoch_size, upsample=False)
 
-    callbacks = finetuning_callbacks(checkpoint_weight_path, patience, verbose)
+    callbacks = finetuning_callbacks(checkpoint_weight_path, patience, monitor, verbose)
     steps = int(epoch_size / batch_size)
     model.fit_generator(train_gen, steps_per_epoch=steps,
                         epochs=nb_epochs,
@@ -509,7 +511,7 @@ def evaluate_using_acc(model, X_test, y_test, batch_size):
 
 def chain_thaw(model, nb_classes, train, val, batch_size,
                loss, epoch_size, nb_epochs, checkpoint_weight_path,
-               patience=5,
+               patience=5, monitor='val_loss',
                initial_lr=0.001, next_lr=0.0001, seed=None,
                verbose=1, evaluate='acc'):
     """ Finetunes given model using chain-thaw and evaluates using accuracy.
@@ -552,7 +554,7 @@ def chain_thaw(model, nb_classes, train, val, batch_size,
     # Use sample generator for fixed-size epoch
     train_gen = sampling_generator(X_train, y_train, batch_size, epoch_size,
                                    upsample=False, seed=seed)
-    callbacks = finetuning_callbacks(checkpoint_weight_path, patience, verbose)
+    callbacks = finetuning_callbacks(checkpoint_weight_path, patience, monitor, verbose)
 
     # Train using chain-thaw
     train_by_chain_thaw(model=model, train_gen=train_gen,

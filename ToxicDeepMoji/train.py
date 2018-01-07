@@ -36,6 +36,8 @@ def main():
     parser.add_argument('--final_dropout_rate', dest='final_dropout_rate', type=float, default=0.5, help='Final dropout rate.')
     parser.add_argument('--embed_l2', dest='embed_l2', type=float, default=0.0, help='embed_l2.')
     parser.add_argument('--method', dest='method', default='last', help='The finetune method. [last, chain-thaw]')
+    parser.add_argument('--monitor', dest='monitor', default='val_loss', help='The monitor of early stopping. [val_loss, val_acc]')
+    
     args = parser.parse_args()
 
     print(vars(args))
@@ -79,6 +81,7 @@ def main():
                           method=args.method,
                           lr=args.lr,
                           patience=args.patience,
+                          monitor=args.monitor,
                           epoch_size=args.epoch_size,
                           nb_epochs=args.nb_epochs, verbose=2)
     print('Acc: {}'.format(acc))
