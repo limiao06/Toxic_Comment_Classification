@@ -18,7 +18,7 @@ from os.path import abspath, dirname
 ROOT_PATH = dirname(dirname(abspath(__file__)))
 sys.path.append(ROOT_PATH)
 
-from src.global_variables import DATA_DIR
+from ToxicDeepMoji.global_variables import DATA_DIR
 
 
 """

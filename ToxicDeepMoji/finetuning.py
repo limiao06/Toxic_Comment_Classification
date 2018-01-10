@@ -10,6 +10,8 @@ import copy
 import h5py
 import math
 import pickle
+import json
+from collections import OrderedDict
 import pandas as pd
 import numpy as np
 
@@ -27,11 +29,11 @@ from deepmoji.global_variables import (
 from deepmoji.tokenizer import tokenize
 from deepmoji.sentence_tokenizer import SentenceTokenizer
 from deepmoji.attlayer import AttentionWeightedAverage
+from deepmoji.create_vocab import extend_vocab, VocabBuilder
+from deepmoji.word_generator import WordGenerator
 
-from global_variables import OUTPUT_LABELS, NB_OUTPUT_CLASSES, WEIGHTS_DIR
+from global_variables import OUTPUT_LABELS, NB_OUTPUT_CLASSES
 
-
-print(WEIGHTS_DIR)
 
 def load_dataset(file):
     print("Load dataset: {}".format(file))
@@ -42,7 +44,7 @@ def load_dataset(file):
     return texts, labels
 
 
-def load_benchmark(path, vocab, maxlen=200, batch_size=50):
+def load_benchmark(path, vocab, maxlen=200, batch_size=50, extend_with=0):
     """ Loads the given benchmark dataset.
 
         Tokenizes the texts using the provided vocabulary, extending it with
@@ -69,7 +71,11 @@ def load_benchmark(path, vocab, maxlen=200, batch_size=50):
             maxlen: Maximum length of an input.
     """
     # Pre-processing dataset
-    data_path = os.path.join(path, "train_dev_data.pkl")
+    if extend_with == 0:
+        data_path = os.path.join(path, "train_dev_data.pkl")
+    elif extend_with > 0:
+        data_path = os.path.join(path, "train_dev_data.extend_vocab.pkl")
+
     if os.path.exists(data_path):
         print("load existing data ... ")
         with open(data_path) as input:
@@ -86,13 +92,31 @@ def load_benchmark(path, vocab, maxlen=200, batch_size=50):
 
         st = SentenceTokenizer(vocab, maxlen)
 
+        added = 0
+        # Extend vocabulary with training set tokens
+        if extend_with > 0:
+            wg = WordGenerator(texts[0],
+                                allow_unicode_text=True,
+                                ignore_emojis=False,
+                                remove_variation_selectors=True,
+                                break_replacement=True)
+            vb = VocabBuilder(wg)
+            vb.count_all_words()
+            added = extend_vocab(st.vocabulary, vb, max_tokens=extend_with)
+            print("Extend vocabulary with {} tokens".format(added))
+            with open(os.path.join(path, 'extended_vocabulary.json'),'w') as input:
+                out_dict = OrderedDict()
+                for key, value in sorted(st.vocabulary.items(), key=lambda x:x[1]):
+                    out_dict[key]=value
+                json.dump(out_dict, input, indent=4)
+
         print("Tokenizing dataset ...")
         texts = [st.tokenize_sentences(s)[0] for s in texts]
         print("Finish Tokenizing.")
 
         data = {'texts': texts,
             'labels': labels,
-            'added': 0,
+            'added': added,
             'batch_size': batch_size,
             'maxlen': maxlen}
         with open(data_path, 'w') as output:
@@ -102,7 +126,7 @@ def load_benchmark(path, vocab, maxlen=200, batch_size=50):
 
 
 
-def finetuning_callbacks(checkpoint_path, patience, verbose):
+def finetuning_callbacks(checkpoint_path, patience, monitor, verbose):
     """ Callbacks for model training.
 
     # Arguments:
@@ -115,14 +139,14 @@ def finetuning_callbacks(checkpoint_path, patience, verbose):
         model.fit() or similar.
     """
     cb_verbose = (verbose >= 2)
-    checkpointer = ModelCheckpoint(monitor='val_loss', filepath=checkpoint_path,
+    checkpointer = ModelCheckpoint(monitor=monitor, filepath=checkpoint_path,
                                    save_best_only=True, verbose=cb_verbose)
-    earlystop = EarlyStopping(monitor='val_loss', patience=patience,
+    earlystop = EarlyStopping(monitor=monitor, patience=patience,
                               verbose=cb_verbose)
 
     ckpt_name, ckpt_ext = os.path.splitext(checkpoint_path)
     csv_logger = CSVLogger(ckpt_name + ".log")
-    
+
     return [checkpointer, earlystop, csv_logger]
 
 
@@ -161,13 +185,9 @@ def change_trainable(layer, trainable, verbose=False):
     if type(layer) == Bidirectional:
         layer.backward_layer.trainable = trainable
         layer.forward_layer.trainable = trainable
-        print(layer.name, layer.backward_layer.trainable, layer.forward_layer.trainable)
-    
 
     if type(layer) == TimeDistributed:
         layer.backward_layer.trainable = trainable
-
-    layer.trainable = trainable
 
     if verbose:
         action = 'Unfroze' if trainable else 'Froze'
@@ -262,7 +282,7 @@ def sampling_generator(X_in, y_in, batch_size, epoch_size=25000,
     # Keep looping until training halts
     while True:
         if not upsample:
-            if epoch_size > len(ind): 
+            if epoch_size > len(ind):
                 # Randomly sample observations in a balanced way
                 sample_ind = np.random.choice(ind, epoch_size, replace=True)
             else:
@@ -294,9 +314,9 @@ def sampling_generator(X_in, y_in, batch_size, epoch_size=25000,
             yield (X[start:end], y[start:end])
 
 
-def finetune(model, texts, labels, nb_classes, batch_size, method,
-             metric='acc', epoch_size=5000, nb_epochs=1000,
-             patience=5, error_checking=True, verbose=1):
+def finetune(model, out_path, texts, labels, nb_classes, batch_size, method,
+             lr=None, metric='acc', epoch_size=5000, nb_epochs=1000,
+             patience=5, monitor='val_loss', error_checking=True, verbose=1):
     """ Compiles and finetunes the given model.
 
     # Arguments:
@@ -332,13 +352,13 @@ def finetune(model, texts, labels, nb_classes, batch_size, method,
     (X_train, y_train) = (texts[0], labels[0])
     (X_val, y_val) = (texts[1], labels[1])
 
-    checkpoint_path = '{}/toxic-deepmoji-checkpoint-{}.hdf5' \
-                      .format(WEIGHTS_DIR, str(uuid.uuid4()))
+    checkpoint_path = '{}/checkpoint.hdf5'.format(out_path)
 
-    if method in ['last', 'new']:
-        lr = 0.001
-    elif method in ['full', 'chain-thaw']:
-        lr = 0.0001
+    if not lr:
+        if method in ['last', 'new']:
+            lr = 0.001
+        elif method in ['full', 'chain-thaw']:
+            lr = 0.0001
 
     """
     def multi_label_loss(y_true, y_pred):
@@ -347,7 +367,7 @@ def finetune(model, texts, labels, nb_classes, batch_size, method,
         r_y_pred = K.reshape(y_pred, shape=(-1,1))
         return NB_OUTPUT_CLASSES * K.binary_crossentropy(r_y_true, r_y_pred)
     """
-    multi_label_loss = 'binary_crossentropy'
+    loss = 'binary_crossentropy'
 
     # Freeze layers if using last
     if method == 'last':
@@ -356,7 +376,7 @@ def finetune(model, texts, labels, nb_classes, batch_size, method,
     # Compile model, for chain-thaw we compile it later (after freezing)
     if method != 'chain-thaw':
         adam = Adam(clipnorm=1, lr=lr)
-        model.compile(loss=multi_label_loss, optimizer=adam, metrics=['accuracy'])
+        model.compile(loss=loss, optimizer=adam, metrics=['accuracy'])
 
     # Training
     if verbose:
@@ -374,6 +394,7 @@ def finetune(model, texts, labels, nb_classes, batch_size, method,
                             epoch_size=epoch_size,
                             nb_epochs=nb_epochs,
                             patience=patience,
+                            monitor=monitor,
                             checkpoint_weight_path=checkpoint_path,
                             evaluate=metric, verbose=verbose)
     else:
@@ -384,6 +405,7 @@ def finetune(model, texts, labels, nb_classes, batch_size, method,
                                 nb_epochs=nb_epochs,
                                 batch_size=batch_size,
                                 patience=patience,
+                                monitor=monitor,
                                 checkpoint_weight_path=checkpoint_path,
                                 evaluate=metric, verbose=verbose)
     return model, result
@@ -391,7 +413,7 @@ def finetune(model, texts, labels, nb_classes, batch_size, method,
 
 def tune_trainable(model, nb_classes, train, val, epoch_size,
                    nb_epochs, batch_size, checkpoint_weight_path,
-                   patience=5, evaluate='acc', verbose=1):
+                   patience=5, monitor='val_loss', evaluate='acc', verbose=1):
     """ Finetunes the given model using the accuracy measure.
 
     # Arguments:
@@ -425,7 +447,7 @@ def tune_trainable(model, nb_classes, train, val, epoch_size,
     train_gen = sampling_generator(X_train, y_train, batch_size,
                                    epoch_size=epoch_size, upsample=False)
 
-    callbacks = finetuning_callbacks(checkpoint_weight_path, patience, verbose)
+    callbacks = finetuning_callbacks(checkpoint_weight_path, patience, monitor, verbose)
     steps = int(epoch_size / batch_size)
     model.fit_generator(train_gen, steps_per_epoch=steps,
                         epochs=nb_epochs,
@@ -433,7 +455,6 @@ def tune_trainable(model, nb_classes, train, val, epoch_size,
                         validation_steps=steps,
                         callbacks=callbacks, verbose=(verbose >= 2))
 
-    
     # Reload the best weights found to avoid overfitting
     # Wait a bit to allow proper closing of weights file
     sleep(1)
@@ -446,7 +467,6 @@ def tune_trainable(model, nb_classes, train, val, epoch_size,
     elif evaluate == 'weighted_f1':
         return evaluate_using_weighted_f1(model, X_test, y_test, X_val, y_val,
                                           batch_size=batch_size)
-    
 
 
 def evaluate_using_weighted_f1(model, X_test, y_test, X_val, y_val,
@@ -491,7 +511,7 @@ def evaluate_using_acc(model, X_test, y_test, batch_size):
 
 def chain_thaw(model, nb_classes, train, val, batch_size,
                loss, epoch_size, nb_epochs, checkpoint_weight_path,
-               patience=5,
+               patience=5, monitor='val_loss',
                initial_lr=0.001, next_lr=0.0001, seed=None,
                verbose=1, evaluate='acc'):
     """ Finetunes given model using chain-thaw and evaluates using accuracy.
@@ -522,17 +542,19 @@ def chain_thaw(model, nb_classes, train, val, batch_size,
     X_train, y_train = train
     X_val, y_val = val
 
+    """
     if nb_classes > 2:
         y_train = to_categorical(y_train)
         y_val = to_categorical(y_val)
+    """
 
     if verbose:
         print('Training..')
 
     # Use sample generator for fixed-size epoch
-    train_gen = sampling_generator(X_train, y_train, batch_size,
+    train_gen = sampling_generator(X_train, y_train, batch_size, epoch_size,
                                    upsample=False, seed=seed)
-    callbacks = finetuning_callbacks(checkpoint_weight_path, patience, verbose)
+    callbacks = finetuning_callbacks(checkpoint_weight_path, patience, monitor, verbose)
 
     # Train using chain-thaw
     train_by_chain_thaw(model=model, train_gen=train_gen,
@@ -541,13 +563,11 @@ def chain_thaw(model, nb_classes, train, val, batch_size,
                         checkpoint_weight_path=checkpoint_weight_path,
                         batch_size=batch_size, verbose=verbose)
 
-    
     if evaluate == 'acc':
         return evaluate_using_acc(model, X_val, y_val, batch_size=batch_size)
     elif evaluate == 'weighted_f1':
         return evaluate_using_weighted_f1(model, X_test, y_test, X_val, y_val,
                                           batch_size=batch_size)
-    
 
 
 def train_by_chain_thaw(model, train_gen, val_data, loss, callbacks, epoch_size,

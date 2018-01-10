@@ -15,13 +15,20 @@ from deepmoji.global_variables import NB_TOKENS
 from global_variables import NB_OUTPUT_CLASSES
 
 
-def get_model(maxlen, weight_path=None, return_attention=False):
-    model = modified_deepmoji_architecture(nb_classes=NB_OUTPUT_CLASSES, nb_tokens=NB_TOKENS,
-                                  maxlen=maxlen,
-                                  return_attention=return_attention)
+def get_model(maxlen, weight_path=None, extend_embedding=0,
+                      embed_dropout_rate=0.25, final_dropout_rate=0.5,
+                      embed_l2=1E-6):
+
+    model = modified_deepmoji_architecture(nb_classes=NB_OUTPUT_CLASSES,
+                                  nb_tokens=NB_TOKENS + extend_embedding,
+                                  maxlen=maxlen, embed_dropout_rate=embed_dropout_rate,
+                                  final_dropout_rate=final_dropout_rate, embed_l2=embed_l2)
 
     if weight_path:
-        load_specific_weights(model, weight_path, exclude_names=['softmax'])
+        load_specific_weights(model, weight_path,
+                              exclude_names=['softmax'],
+                              extend_embedding=extend_embedding)
+
     return model
 
 def modified_deepmoji_architecture(nb_classes, nb_tokens, maxlen, embed_dropout_rate=0, final_dropout_rate=0, embed_l2=1E-6, return_attention=False):
@@ -80,7 +87,7 @@ def modified_deepmoji_architecture(nb_classes, nb_tokens, maxlen, embed_dropout_
         x = Dropout(final_dropout_rate)(x)
 
     outputs = [Dense(nb_classes, activation='sigmoid', name='softmax')(x)]
-   
+
     if return_attention:
         # add the attention weights to the outputs if required
         outputs.append(weights)

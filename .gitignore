@@ -5,6 +5,7 @@
 *.log
 *.ipynb
 DeepMoji/
-input/
+input
 output/
 model/
+other_resources/
