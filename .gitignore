@@ -9,3 +9,4 @@ input
 output/
 model/
 other_resources/
+.vector_cache/
