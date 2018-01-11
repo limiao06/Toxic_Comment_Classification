@@ -78,7 +78,6 @@ def train(train_iter, dev_iter, model, args):
 
     for epoch in range(args.epochs):
         train_iter.init_epoch()
-        n_correct, n_total = 0, 0
         for batch_idx, batch in enumerate(train_iter):
             # switch model to training mode, clear gradient accumulators
             model.train(); opt.zero_grad()
@@ -88,9 +87,7 @@ def train(train_iter, dev_iter, model, args):
             logit = model(batch.text)
 
             # calculate accuracy of predictions in the current batch
-            nc, nt = cal_acc(logit, batch.label)
-            n_correct += nc
-            n_total += nt           
+            n_correct, n_total = cal_acc(logit, batch.label)
             train_acc = 100. * n_correct/n_total
 
             # calculate loss of the network output with respect to training labels
@@ -100,7 +97,7 @@ def train(train_iter, dev_iter, model, args):
             loss.backward(); opt.step()
 
             # evaluate performance on validation set periodically
-            if iterations % args.dev_every == 0:
+            if (args.dev_every > 0) and (iterations % args.dev_every == 0):
                 dev_loss, dev_acc = eval()
                 print(dev_log_template.format(time.time()-start,
                     epoch, iterations, 1+batch_idx, len(train_iter),
@@ -130,4 +127,3 @@ def train(train_iter, dev_iter, model, args):
             # found a model with better validation set accuracy
             best_dev_acc = dev_acc
             save(dev_acc, dev_loss, iterations)
-
