@@ -50,6 +50,31 @@ def train(train_iter, dev_iter, model, args):
     makedirs(args.save_path)
     print(header)
 
+    def eval():
+        # switch model to evaluation mode
+        model.eval(); dev_iter.init_epoch()
+
+        # calculate accuracy on validation set
+        n_dev_correct, n_dev_total, dev_loss = 0, 0, 0
+        for dev_batch_idx, dev_batch in enumerate(dev_iter):
+            dev_logit = model(dev_batch.text)
+            ndc, ndt = cal_acc(dev_logit, dev_batch.label)
+            n_dev_correct += ndc
+            n_dev_total += ndt
+            dev_loss = criterion(dev_logit, dev_batch.label)
+        
+        dev_acc = 100. * n_dev_correct / n_dev_total
+        return dev_loss, dev_acc
+
+    def save(acc, loss, iter, name='snapshot'):
+        snapshot_prefix = os.path.join(args.save_path, name)
+        snapshot_path = snapshot_prefix + '_acc_{:.4f}_loss_{:.6f}_iter_{}_model.pt'.format(acc, loss.data[0], iter)
+        torch.save(model, snapshot_path)
+        for f in glob.glob(snapshot_prefix + '*'):
+            if f != snapshot_path:
+                os.remove(f)
+
+
 
     for epoch in range(args.epochs):
         train_iter.init_epoch()
@@ -74,49 +99,18 @@ def train(train_iter, dev_iter, model, args):
             # backpropagate and update optimizer learning rate
             loss.backward(); opt.step()
 
-            # checkpoint model periodically
-            if iterations % args.save_every == 0:
-                snapshot_prefix = os.path.join(args.save_path, 'snapshot')
-                snapshot_path = snapshot_prefix + '_acc_{:.4f}_loss_{:.6f}_iter_{}_model.pt'.format(train_acc, loss.data[0], iterations)
-                torch.save(model, snapshot_path)
-                for f in glob.glob(snapshot_prefix + '*'):
-                    if f != snapshot_path:
-                        os.remove(f)
-
             # evaluate performance on validation set periodically
             if iterations % args.dev_every == 0:
-
-                # switch model to evaluation mode
-                model.eval(); dev_iter.init_epoch()
-
-                # calculate accuracy on validation set
-                n_dev_correct, n_dev_total, dev_loss = 0, 0, 0
-                for dev_batch_idx, dev_batch in enumerate(dev_iter):
-                    dev_logit = model(dev_batch.text)
-                    ndc, ndt = cal_acc(dev_logit, dev_batch.label)
-                    n_dev_correct += ndc
-                    n_dev_total += ndt
-                    dev_loss = criterion(dev_logit, dev_batch.label)
-                
-                dev_acc = 100. * n_dev_correct / len(dev)
-
+                dev_loss, dev_acc = eval()
                 print(dev_log_template.format(time.time()-start,
                     epoch, iterations, 1+batch_idx, len(train_iter),
                     100. * (1+batch_idx) / len(train_iter), loss.data[0], dev_loss.data[0], train_acc, dev_acc))
 
                 # update best valiation set accuracy
                 if dev_acc > best_dev_acc:
-
                     # found a model with better validation set accuracy
                     best_dev_acc = dev_acc
-                    snapshot_prefix = os.path.join(args.save_path, 'best_snapshot')
-                    snapshot_path = snapshot_prefix + '_devacc_{}_devloss_{}__iter_{}_model.pt'.format(dev_acc, dev_loss.data[0], iterations)
-
-                    # save model, delete previous 'best_snapshot' files
-                    torch.save(model, snapshot_path)
-                    for f in glob.glob(snapshot_prefix + '*'):
-                        if f != snapshot_path:
-                            os.remove(f)
+                    save(dev_acc, dev_loss, iterations)
 
             elif iterations % args.log_every == 0:
 
@@ -124,3 +118,16 @@ def train(train_iter, dev_iter, model, args):
                 print(log_template.format(time.time()-start,
                     epoch, iterations, 1+batch_idx, len(train_iter),
                     100. * (1+batch_idx) / len(train_iter), loss.data[0], ' '*8, n_correct/n_total*100, ' '*12))
+
+        # eval and save after an epoch
+        dev_loss, dev_acc = eval()
+        print(dev_log_template.format(time.time()-start,
+            epoch, iterations, 1+batch_idx, len(train_iter),
+            100. * (1+batch_idx) / len(train_iter), loss.data[0], dev_loss.data[0], train_acc, dev_acc))
+
+        # update best valiation set accuracy
+        if dev_acc > best_dev_acc:
+            # found a model with better validation set accuracy
+            best_dev_acc = dev_acc
+            save(dev_acc, dev_loss, iterations)
+
