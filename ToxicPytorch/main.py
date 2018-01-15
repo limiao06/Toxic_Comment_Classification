@@ -82,7 +82,7 @@ def main():
     print('Load data ... ')
     t_start = time.time()
     ID = data.Field(sequential=False, use_vocab=False, tensor_type=torch.FloatTensor, batch_first=True)
-    TEXT = data.Field(lower=True, tokenize='spacy', batch_first=True)
+    TEXT = data.Field(lower=True, batch_first=True)
     LABEL = data.Field(sequential=False, use_vocab=False, tensor_type=torch.FloatTensor, batch_first=True)
 
 

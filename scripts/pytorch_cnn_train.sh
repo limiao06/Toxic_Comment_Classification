@@ -6,4 +6,4 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "${DIR}/../"
 
 
-python ToxicPytorch/main.py --model cnn --save_path model/pytorch_cnn_model --log_every 10 --dev_every 0
+python ToxicPytorch/main.py --model cnn --save_path model/pytorch_cnn_model --log_every 10 --dev_every 0 --gpu 0

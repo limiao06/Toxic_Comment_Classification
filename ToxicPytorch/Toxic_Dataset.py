@@ -2,7 +2,40 @@ import pandas as pd
 from torchtext import data
 import random
 import os
+import re
 from tqdm import tqdm
+
+
+def clean_str(string):
+    """
+    Tokenization/string cleaning for all datasets except for SST.
+    Original taken from https://github.com/yoonkim/CNN_sentence/blob/master/process_data.py
+    add 'm and 'em
+    """
+    string = re.sub(r"[^A-Za-z0-9(),!?\'\`]", " ", string)
+    string = re.sub(r"\'s", " \'s", string)
+    string = re.sub(r"\'ve", " \'ve", string)
+    string = re.sub(r"n\'t", " n\'t", string)
+    string = re.sub(r"\'re", " \'re", string)
+    string = re.sub(r"\'d", " \'d", string)
+    string = re.sub(r"\'ll", " \'ll", string)
+    string = re.sub(r"\'m", " \'m", string)
+    string = re.sub(r"\'em", " \'em", string)
+    string = re.sub(r",", " , ", string)
+    string = re.sub(r"!", " ! ", string)
+    string = re.sub(r"\(", " \( ", string)
+    string = re.sub(r"\)", " \) ", string)
+    string = re.sub(r"\?", " \? ", string)
+    string = re.sub(r"\s{2,}", " ", string)
+    return string.strip()
+
+def truncate_str(string, max_len=200):
+    tokens = string.split(" ")
+    if len(tokens) > max_len:
+        tokens = tokens[0:max_len]
+    return " ".join(tokens)
+
+
 
 class Toxic(data.Dataset):
 
@@ -12,7 +45,7 @@ class Toxic(data.Dataset):
     def sort_key(ex):
         return len(ex.text)
 
-    def __init__(self, id_field, text_field, label_field, path=None, examples=None, test=False, **kwargs):
+    def __init__(self, id_field, text_field, label_field, path=None, examples=None, test=False, max_len=200, **kwargs):
         """Create an Toixc dataset instance given a path and fields.
         Arguments:
             path: Path to the data file
@@ -28,9 +61,11 @@ class Toxic(data.Dataset):
             dataset = pd.read_csv(path)
             if not test:
                 for id, text, label in tqdm(zip(dataset['id'], dataset['comment_text'], dataset[label_cols].as_matrix())):
+                    text = truncate_str(clean_str(text), max_len=max_len)
                     examples.append(data.Example.fromlist([id, text, label], fields))
             else:
                 for id, text in tqdm(zip(dataset['id'], dataset['comment_text'])):
+                    text = truncate_str(clean_str(text), max_len=max_len)
                     examples.append(data.Example.fromlist([id, text, [0] * 6], fields))
 
         super(Toxic, self).__init__(examples, fields, **kwargs)
