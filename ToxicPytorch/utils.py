@@ -5,6 +5,9 @@ import torch.autograd as autograd
 import torch.nn.functional as F
 import glob
 import time
+from tqdm import tqdm
+
+from global_variables import DATA_DIR, NB_OUTPUT_CLASSES
 
 
 def cal_acc(logit, label):
@@ -88,7 +91,7 @@ def train(train_iter, dev_iter, model, args):
 
             # calculate accuracy of predictions in the current batch
             n_correct, n_total = cal_acc(logit, batch.label)
-            train_acc = 100. * n_correct/n_total
+            train_acc = 100. * n_correct / n_total
 
             # calculate loss of the network output with respect to training labels
             loss = criterion(logit, batch.label)
@@ -127,3 +130,18 @@ def train(train_iter, dev_iter, model, args):
             # found a model with better validation set accuracy
             best_dev_acc = dev_acc
             save(dev_acc, dev_loss, iterations)
+
+def predict(test_iter, model, args):
+    model.eval()
+    submission = pd.DataFrame()
+    test_iter.init_epoch()
+    for batch_idx, batch in tqdm(enumerate(test_iter)):
+        logit = model(batch.text)
+        probs = F.sigmoid(logit)
+        batch_results_id = pd.DataFrame({'id': data["id"]})
+        batch_results = pd.concat([batch_results_id, pd.DataFrame(probs.data, columns = OUTPUT_LABELS)], axis=1)
+        submission = pd.concat(submission, batch_results)
+    submission.to_csv(args.output, index=False)
+
+    
+

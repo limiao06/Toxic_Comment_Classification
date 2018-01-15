@@ -1,6 +1,8 @@
 import pandas as pd
 from torchtext import data
 import random
+import os
+from tqdm import tqdm
 
 class Toxic(data.Dataset):
 
@@ -10,7 +12,7 @@ class Toxic(data.Dataset):
     def sort_key(ex):
         return len(ex.text)
 
-    def __init__(self, text_field, label_field, path=None, examples=None, **kwargs):
+    def __init__(self, id_field, text_field, label_field, path=None, examples=None, test=False, **kwargs):
         """Create an Toixc dataset instance given a path and fields.
         Arguments:
             path: Path to the data file
@@ -19,19 +21,22 @@ class Toxic(data.Dataset):
             Remaining keyword arguments: Passed to the constructor of
                 data.Dataset.
         """
-        fields = [('text', text_field), ('label', label_field)]
+        fields = [('id', id_field), ('text', text_field), ('label', label_field)]
         if examples == None:
-            examples = []  
-            dataset = pd.read_csv(path)
+            examples = []
             label_cols = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult', 'identity_hate']
+            dataset = pd.read_csv(path)
+            if not test:
+                for id, text, label in tqdm(zip(dataset['id'], dataset['comment_text'], dataset[label_cols].as_matrix())):
+                    examples.append(data.Example.fromlist([id, text, label], fields))
+            else:
+                for id, text in tqdm(zip(dataset['id'], dataset['comment_text'])):
+                    examples.append(data.Example.fromlist([id, text, [0] * 6], fields))
 
-            for text, label in zip(dataset['comment_text'], dataset[label_cols].as_matrix()):
-                examples.append(data.Example.fromlist([text, label], fields))
-        
         super(Toxic, self).__init__(examples, fields, **kwargs)
 
     @classmethod
-    def splits(cls, text_field, label_field, dev_ratio=.1, shuffle=True ,root='.', seed=5, **kwargs):
+    def splits(cls, id_field, text_field, label_field, dev_ratio=.1, shuffle=True ,root='.', include_test=False, seed=5, **kwargs):
         """Create dataset objects for splits of the Toxic dataset.
         Arguments:
             text_field: The field that will be used for the sentence.
@@ -45,13 +50,23 @@ class Toxic(data.Dataset):
             Remaining keyword arguments: Passed to the splits method of
                 Dataset.
         """
-        examples = cls(text_field, label_field, path=root, **kwargs).examples
+        train_path = os.path.join(root, "train.csv")
+        print('Load training data ... ')
+        examples = cls(id_field, text_field, label_field, path=train_path, **kwargs).examples
         if shuffle:
             random.seed(seed)
             random.shuffle(examples)
         dev_index = -1 * int(dev_ratio*len(examples))
 
-        return (cls(text_field, label_field, examples=examples[:dev_index]),
-                cls(text_field, label_field, examples=examples[dev_index:]))
+        train = cls(id_field, text_field, label_field, examples=examples[:dev_index])
+        dev = cls(id_field, text_field, label_field, examples=examples[dev_index:])
 
+        if include_test:
+            print('Load test data ... ')
+            test_path = os.path.join(root, "test.csv")
+            test = cls(id_field, text_field, label_field, path=test_path, test=True, **kwargs)
+        else:
+            test = None
+
+        return (train, dev, test)
 

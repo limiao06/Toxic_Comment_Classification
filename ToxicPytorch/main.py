@@ -1,5 +1,6 @@
 import os
 from argparse import ArgumentParser
+import time
 
 import torch
 from torchtext import data
@@ -46,6 +47,8 @@ def get_args():
     parser.add_argument('--save_path', type=str, default='model')
     parser.add_argument('--word_vectors', type=str, default='glove.6B.300d')
     parser.add_argument('--resume_snapshot', type=str, default='')
+    parser.add_argument('--mode', type=str, default='train', help='mode: [train, test]')
+    parser.add_argument('--output', type=str, default='', help='The result output path for test mode')
 
     parser.add_argument('--model', type=str, default='rnn', help='model: [rnn, cnn]')
     # rnn parameter
@@ -70,57 +73,70 @@ def main():
 
     if args.cuda:
         torch.cuda.set_device(args.gpu)
+
+    if args.mode == 'test':
+        if not args.resume_snapshot:
+            raise Exception("--resume_snapshot must be set in test mode! ")
     
     # load training data
     print('Load data ... ')
+    t_start = time.time()
+    ID = data.Field(sequential=False, use_vocab=False, tensor_type=torch.FloatTensor, batch_first=True)
     TEXT = data.Field(lower=True, tokenize='spacy', batch_first=True)
     LABEL = data.Field(sequential=False, use_vocab=False, tensor_type=torch.FloatTensor, batch_first=True)
 
 
     # make splits for data
-    data_path = os.path.join(DATA_DIR, "train.csv")
-    train, dev = Toxic.splits(TEXT, LABEL, root=data_path)
+    if args.mode == 'train':
+        train, dev, _ = Toxic.splits(ID, TEXT, LABEL, root=DATA_DIR)
+    elif args.mode == 'test':
+        train, dev, test = Toxic.splits(ID, TEXT, LABEL, root=DATA_DIR, include_test=True)
 
     # print information about the data
     print('train.fields', train.fields)
     print('len(train)', len(train))
     print('vars(train[0])', vars(train[0]))
     print('vars(dev[0])', vars(dev[0]))
-
+    
     # build vocab
     print('Build vocab ... ')
-    TEXT.build_vocab(train, vectors=args.word_vectors)
+    t_start = time.time()
+    TEXT.build_vocab(train, dev, vectors=args.word_vectors)
     # print vocab information
     print('len(TEXT.vocab)', len(TEXT.vocab))
     print('TEXT.vocab.vectors.size()', TEXT.vocab.vectors.size())
 
+    if args.mode == 'train':
+        train_iter, dev_iter = data.BucketIterator.splits(
+                (train, dev), batch_size=args.batch_size, device=args.gpu)
 
-    train_iter, dev_iter = data.BucketIterator.splits(
-            (train, dev), batch_size=args.batch_size, device=args.gpu)
+        args.n_embed = len(TEXT.vocab)
+        args.n_label = NB_OUTPUT_CLASSES
 
-    args.n_embed = len(TEXT.vocab)
-    args.n_label = NB_OUTPUT_CLASSES
+        if args.model == 'rnn':
+            args.n_cells = args.n_layers
+            if args.birnn:
+                args.n_cells *= 2
+        elif args.model == 'cnn':
+            args.kernel_sizes = [int(k) for k in args.kernel_sizes.split(',')]
+        else:
+            raise Exception("Unknown model, 'rnn' or 'cnn' is supported.")
 
-    if args.model == 'rnn':
-        args.n_cells = args.n_layers
-        if args.birnn:
-            args.n_cells *= 2
-    elif args.model == 'cnn':
-        args.kernel_sizes = [int(k) for k in args.kernel_sizes.split(',')]
-    else:
-        raise Exception("Unknown model, 'rnn' or 'cnn' is supported.")
+        # build model
+        if args.resume_snapshot:
+            model = torch.load(args.resume_snapshot, map_location=lambda storage, location: storage.cuda(args.gpu))
+        else:
+            model = ToxicClassifier(args)
+            if args.word_vectors:
+                model.embed.weight.data = TEXT.vocab.vectors
 
-    # build model
-    if args.resume_snapshot:
+        # begin training
+        train_proc(train_iter, dev_iter, model, args)
+    elif args.mode == 'test':
+        test_iter = data.BucketIterator.splits(
+                (test), batch_size=args.batch_size, device=args.gpu)
         model = torch.load(args.resume_snapshot, map_location=lambda storage, location: storage.cuda(args.gpu))
-    else:
-        model = ToxicClassifier(args)
-        if args.word_vectors:
-            model.embed.weight.data = TEXT.vocab.vectors
-
-    # begin training
-    train_proc(train_iter, dev_iter, model, args)
-
+        predict(test_iter, model, args)
 
 
 
