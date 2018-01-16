@@ -5,6 +5,11 @@ import os
 import re
 from tqdm import tqdm
 
+def preprocess(string, min_len=6, max_len=200):
+    if type(string) != str:
+        string=str(string)
+    string = clean_str(string)
+    return truncate_or_pad_str(string, min_len, max_len)
 
 def clean_str(string):
     """
@@ -29,9 +34,12 @@ def clean_str(string):
     string = re.sub(r"\s{2,}", " ", string)
     return string.strip()
 
-def truncate_str(string, max_len=200):
+def truncate_or_pad_str(string, min_len=5, max_len=200):
     tokens = string.split(" ")
-    if len(tokens) > max_len:
+    length = len(tokens)
+    if length < min_len:
+        tokens.extend(['<pad>'] * (min_len-length))
+    elif length > max_len:
         tokens = tokens[0:max_len]
     return " ".join(tokens)
 
@@ -61,11 +69,11 @@ class Toxic(data.Dataset):
             dataset = pd.read_csv(path)
             if not test:
                 for id, text, label in tqdm(zip(dataset['id'], dataset['comment_text'], dataset[label_cols].as_matrix())):
-                    text = truncate_str(clean_str(text), max_len=max_len)
+                    text = preprocess(text, max_len=max_len)
                     examples.append(data.Example.fromlist([id, text, label], fields))
             else:
                 for id, text in tqdm(zip(dataset['id'], dataset['comment_text'])):
-                    text = truncate_str(clean_str(text), max_len=max_len)
+                    text = preprocess(text, max_len=max_len)
                     examples.append(data.Example.fromlist([id, text, [0] * 6], fields))
 
         super(Toxic, self).__init__(examples, fields, **kwargs)

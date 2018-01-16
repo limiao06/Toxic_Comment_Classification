@@ -9,6 +9,7 @@ from global_variables import DATA_DIR, NB_OUTPUT_CLASSES
 from Toxic_Dataset import Toxic
 from model import ToxicClassifier
 from utils import train as train_proc
+from utils import predict
 
 def makedirs(name):
     """helper function for python 2 and 3 to call os.makedirs()
@@ -133,8 +134,8 @@ def main():
         # begin training
         train_proc(train_iter, dev_iter, model, args)
     elif args.mode == 'test':
-        test_iter = data.BucketIterator.splits(
-                (test), batch_size=args.batch_size, device=args.gpu)
+        train_iter, dev_iter, test_iter = data.BucketIterator.splits(
+                (train, dev, test), batch_size=args.batch_size, device=args.gpu)
         model = torch.load(args.resume_snapshot, map_location=lambda storage, location: storage.cuda(args.gpu))
         predict(test_iter, model, args)
 
