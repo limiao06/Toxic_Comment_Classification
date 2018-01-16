@@ -138,8 +138,10 @@ def predict(test_iter, model, args):
     for batch_idx, batch in tqdm(enumerate(test_iter)):
         logit = model(batch.text)
         probs = F.sigmoid(logit)
-        batch_results_id = pd.DataFrame({'id': batch.id})
-        batch_results = pd.concat([batch_results_id, pd.DataFrame(probs.data, columns = OUTPUT_LABELS)], axis=1)
+        if args.cuda:
+            probs = probs.data.cpu()
+        batch_results_id = pd.DataFrame({'id': batch.id.data})
+        batch_results = pd.concat([batch_results_id, pd.DataFrame(probs.numpy(), columns = OUTPUT_LABELS)], axis=1)
         submission = pd.concat(submission, batch_results)
     submission.to_csv(args.output, index=False)
 
