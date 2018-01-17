@@ -7,7 +7,7 @@ import glob
 import time
 from tqdm import tqdm
 import pandas as pd
-from global_variables import DATA_DIR, NB_OUTPUT_CLASSES
+from global_variables import DATA_DIR, NB_OUTPUT_CLASSES, OUTPUT_LABELS
 
 
 def cal_acc(logit, label):
@@ -117,7 +117,7 @@ def train(train_iter, dev_iter, model, args):
                 # print progress message
                 print(log_template.format(time.time()-start,
                     epoch, iterations, 1+batch_idx, len(train_iter),
-                    100. * (1+batch_idx) / len(train_iter), loss.data[0], ' '*8, n_correct/n_total*100, ' '*12))
+                    100. * (1+batch_idx) / len(train_iter), loss.data[0], ' '*8, train_acc, ' '*12))
 
         # eval and save after an epoch
         dev_loss, dev_acc = eval()
@@ -133,8 +133,8 @@ def train(train_iter, dev_iter, model, args):
 
 def predict(test_iter, model, args):
     model.eval()
-    submission = pd.DataFrame()
     test_iter.init_epoch()
+    submission = pd.DataFrame()
     for batch_idx, batch in tqdm(enumerate(test_iter)):
         logit = model(batch.text)
         probs = F.sigmoid(logit)
@@ -142,7 +142,8 @@ def predict(test_iter, model, args):
             probs = probs.data.cpu()
         batch_results_id = pd.DataFrame({'id': batch.id.data})
         batch_results = pd.concat([batch_results_id, pd.DataFrame(probs.numpy(), columns = OUTPUT_LABELS)], axis=1)
-        submission = pd.concat(submission, batch_results)
+        submission = submission.append(batch_results, ignore_index=True)
+    print(len(submission))
     submission.to_csv(args.output, index=False)
 
     
