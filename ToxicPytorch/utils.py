@@ -58,15 +58,16 @@ def train(train_iter, dev_iter, model, args):
         model.eval(); dev_iter.init_epoch()
 
         # calculate accuracy on validation set
-        n_dev_correct, n_dev_total, dev_loss = 0, 0, 0
+        n_dev_correct, n_dev_total, dev_loss = 0, 0, 0.0
         for dev_batch_idx, dev_batch in enumerate(dev_iter):
             dev_logit = model(dev_batch.text)
             ndc, ndt = cal_acc(dev_logit, dev_batch.label)
             n_dev_correct += ndc
             n_dev_total += ndt
-            dev_loss = criterion(dev_logit, dev_batch.label)
+            dev_loss += criterion(dev_logit, dev_batch.label) * ndt
         
         dev_acc = 100. * n_dev_correct / n_dev_total
+        dev_loss = dev_loss / n_dev_total
         return dev_loss, dev_acc
 
     def save(acc, loss, iter, name='snapshot'):
@@ -102,6 +103,7 @@ def train(train_iter, dev_iter, model, args):
             # evaluate performance on validation set periodically
             if (args.dev_every > 0) and (iterations % args.dev_every == 0):
                 dev_loss, dev_acc = eval()
+                print()
                 print(dev_log_template.format(time.time()-start,
                     epoch, iterations, 1+batch_idx, len(train_iter),
                     100. * (1+batch_idx) / len(train_iter), loss.data[0], dev_loss.data[0], train_acc, dev_acc))
@@ -117,10 +119,12 @@ def train(train_iter, dev_iter, model, args):
                 # print progress message
                 print(log_template.format(time.time()-start,
                     epoch, iterations, 1+batch_idx, len(train_iter),
-                    100. * (1+batch_idx) / len(train_iter), loss.data[0], ' '*8, train_acc, ' '*12))
+                    100. * (1+batch_idx) / len(train_iter), loss.data[0], ' '*8, train_acc, ' '*12), 
+                    end='\r', flush=True)
 
         # eval and save after an epoch
         dev_loss, dev_acc = eval()
+        print()
         print(dev_log_template.format(time.time()-start,
             epoch, iterations, 1+batch_idx, len(train_iter),
             100. * (1+batch_idx) / len(train_iter), loss.data[0], dev_loss.data[0], train_acc, dev_acc))
