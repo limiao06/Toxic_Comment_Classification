@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import os
 import sys
 import torch
@@ -119,7 +121,8 @@ def train(train_iter, dev_iter, model, args):
                 # print progress message
                 print(log_template.format(time.time()-start,
                             epoch, iterations, 1+batch_idx, len(train_iter),
-                            100. * (1+batch_idx) / len(train_iter), loss.data[0], ' '*8, train_acc, ' '*12) + '\r')
+                            100. * (1+batch_idx) / len(train_iter), loss.data[0], ' '*8, train_acc, ' '*12), end='\r')
+                sys.stdout.flush()
                 
 
         # eval and save after an epoch
