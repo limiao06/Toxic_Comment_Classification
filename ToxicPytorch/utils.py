@@ -118,9 +118,9 @@ def train(train_iter, dev_iter, model, args):
 
                 # print progress message
                 print(log_template.format(time.time()-start,
-                    epoch, iterations, 1+batch_idx, len(train_iter),
-                    100. * (1+batch_idx) / len(train_iter), loss.data[0], ' '*8, train_acc, ' '*12), 
-                    end='\r', flush=True)
+                            epoch, iterations, 1+batch_idx, len(train_iter),
+                            100. * (1+batch_idx) / len(train_iter), loss.data[0], ' '*8, train_acc, ' '*12) + '\r')
+                
 
         # eval and save after an epoch
         dev_loss, dev_acc = eval()
