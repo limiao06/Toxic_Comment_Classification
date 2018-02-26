@@ -5,6 +5,8 @@ import os
 import re
 from tqdm import tqdm
 
+from sklearn.model_selection import train_test_split
+
 def preprocess(string, min_len=6, max_len=200):
     if type(string) != str:
         string=str(string)
@@ -79,7 +81,7 @@ class Toxic(data.Dataset):
         super(Toxic, self).__init__(examples, fields, **kwargs)
 
     @classmethod
-    def splits(cls, id_field, text_field, label_field, dev_ratio=.05, shuffle=True ,root='.', include_test=False, seed=5, **kwargs):
+    def splits(cls, id_field, text_field, label_field, dev_ratio=.05, shuffle=True ,root='.', include_test=False, seed=233, **kwargs):
         """Create dataset objects for splits of the Toxic dataset.
         Arguments:
             text_field: The field that will be used for the sentence.
@@ -96,13 +98,10 @@ class Toxic(data.Dataset):
         train_path = os.path.join(root, "train.csv")
         print('Load training data ... ')
         examples = cls(id_field, text_field, label_field, path=train_path, **kwargs).examples
-        if shuffle:
-            random.seed(seed)
-            random.shuffle(examples)
-        dev_index = -1 * int(dev_ratio*len(examples))
+        train_examples, dev_examples = train_test_split(examples, train_size=1-dev_ratio, random_state=seed, shuffle=shuffle)
 
-        train = cls(id_field, text_field, label_field, examples=examples[:dev_index])
-        dev = cls(id_field, text_field, label_field, examples=examples[dev_index:])
+        train = cls(id_field, text_field, label_field, examples=train_examples)
+        dev = cls(id_field, text_field, label_field, examples=dev_examples)
 
         if include_test:
             print('Load test data ... ')
