@@ -10,3 +10,5 @@ output/
 model/
 other_resources/
 .vector_cache/
+*.csv
+
