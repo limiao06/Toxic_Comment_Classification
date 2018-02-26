@@ -4,8 +4,9 @@ import time
 
 import torch
 from torchtext import data
+import pandas as pd
 
-from global_variables import DATA_DIR, NB_OUTPUT_CLASSES
+from global_variables import DATA_DIR, NB_OUTPUT_CLASSES, OUTPUT_LABELS
 from Toxic_Dataset import Toxic
 from model import ToxicClassifier
 from utils import train as train_proc
@@ -49,6 +50,7 @@ def get_args():
     parser.add_argument('--word_vectors', type=str, default='glove.6B.300d')
     parser.add_argument('--resume_snapshot', type=str, default='')
     parser.add_argument('--mode', type=str, default='train', help='mode: [train, test]')
+    parser.add_argument('--cell', type=str, default='LSTM', help='rnn cell: [LSTM, GRU]')
     parser.add_argument('--output', type=str, default='', help='The result output path for test mode')
 
     parser.add_argument('--model', type=str, default='rnn', help='model: [rnn, cnn]')
@@ -82,7 +84,8 @@ def main():
     # load training data
     print('Load data ... ')
     t_start = time.time()
-    ID = data.Field(sequential=False, use_vocab=False, batch_first=True)
+    #ID = data.Field(sequential=False, use_vocab=False, batch_first=True)
+    ID = data.Field(sequential=False, batch_first=True)
     TEXT = data.Field(lower=True, batch_first=True)
     LABEL = data.Field(sequential=False, use_vocab=False, tensor_type=torch.FloatTensor, batch_first=True)
 
@@ -103,6 +106,10 @@ def main():
     print('Build vocab ... ')
     t_start = time.time()
     TEXT.build_vocab(train, dev, vectors=args.word_vectors)
+    if args.mode == 'train':
+        ID.build_vocab(train, dev)
+    elif args.mode == 'test':
+        ID.build_vocab(train, dev, test)
     # print vocab information
     print('len(TEXT.vocab)', len(TEXT.vocab))
     print('TEXT.vocab.vectors.size()', TEXT.vocab.vectors.size())
@@ -137,9 +144,11 @@ def main():
         train_iter, dev_iter, test_iter = data.BucketIterator.splits(
                 (train, dev, test), batch_size=args.batch_size, device=args.gpu)
         model = torch.load(args.resume_snapshot, map_location=lambda storage, location: storage.cuda(args.gpu))
-        predict(test_iter, model, args)
-
-
+        ids, preds = predict(test_iter, model, args)
+        ids = [ID.vocab.itos[id] for id in ids]
+        results_id = pd.DataFrame({'id': ids})
+        submission = pd.concat([results_id, pd.DataFrame(preds, columns = OUTPUT_LABELS)],axis=1)
+        submission.to_csv(args.output, index=False)
 
 
 if __name__ == '__main__':

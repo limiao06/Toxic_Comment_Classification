@@ -18,13 +18,21 @@ class Linear(Bottle, nn.Linear):
     pass
 
 
-class LSTMEncoder(nn.Module):
+class RNNEncoder(nn.Module):
 
     def __init__(self, args):
-        super(LSTMEncoder, self).__init__()
+        super(RNNEncoder, self).__init__()
         self.args = args
         input_size = args.d_proj if args.projection else args.d_embed
-        self.rnn = nn.LSTM(input_size=input_size, hidden_size=args.d_hidden,
+        self.is_lstm = False
+        if args.cell == 'LSTM':
+            cell = nn.LSTM
+            self.is_lstm = True
+        elif args.cell == 'GRU':
+            cell = nn.GRU
+        else:
+            cell = nn.RNN
+        self.rnn = cell(input_size=input_size, hidden_size=args.d_hidden,
                         num_layers=args.n_layers, dropout=args.dp_ratio,
                         bidirectional=args.birnn)
         self.dropout = nn.Dropout(p=args.dp_ratio)
@@ -45,8 +53,13 @@ class LSTMEncoder(nn.Module):
         batch_size = inputs.size()[1]
         # n_cell = n_layers * 2 if birnn else n_layers
         state_shape = self.args.n_cells, batch_size, self.args.d_hidden
-        h0 = c0 = Variable(inputs.data.new(*state_shape).zero_())
-        outputs, (ht, ct) = self.rnn(inputs, (h0, c0))
+        if self.is_lstm:
+            h0 = Variable(inputs.data.new(*state_shape).zero_())
+            c0 = Variable(inputs.data.new(*state_shape).zero_())
+            outputs, (ht, ct) = self.rnn(inputs, (h0, c0))
+        else:
+            h0 = Variable(inputs.data.new(*state_shape).zero_())
+            outputs, ht = self.rnn(inputs, h0)
         hidden = ht[-1] if not self.args.birnn else ht[-2:].transpose(0, 1).contiguous().view(batch_size, -1)
         return self.out(hidden)
 
@@ -89,7 +102,7 @@ class ToxicClassifier(nn.Module):
         self.embed = nn.Embedding(args.n_embed, args.d_embed)
         self.projection = Linear(args.d_embed, args.d_proj)
         if args.model == 'rnn':
-            self.encoder = LSTMEncoder(args)
+            self.encoder = RNNEncoder(args)
         elif args.model == 'cnn':
             self.encoder = CNNEncoder(args)
         self.dropout = nn.Dropout(p=args.dp_ratio)

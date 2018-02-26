@@ -79,7 +79,7 @@ class Toxic(data.Dataset):
         super(Toxic, self).__init__(examples, fields, **kwargs)
 
     @classmethod
-    def splits(cls, id_field, text_field, label_field, dev_ratio=.1, shuffle=True ,root='.', include_test=False, seed=5, **kwargs):
+    def splits(cls, id_field, text_field, label_field, dev_ratio=.05, shuffle=True ,root='.', include_test=False, seed=5, **kwargs):
         """Create dataset objects for splits of the Toxic dataset.
         Arguments:
             text_field: The field that will be used for the sentence.

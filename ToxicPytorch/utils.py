@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import os
 import sys
+import numpy as np
 import torch
 import torch.autograd as autograd
 import torch.nn.functional as F
@@ -141,6 +142,7 @@ def train(train_iter, dev_iter, model, args):
 def predict(test_iter, model, args):
     model.eval()
     test_iter.init_epoch()
+    """
     submission = pd.DataFrame()
     for batch_idx, batch in tqdm(enumerate(test_iter)):
         logit = model(batch.text)
@@ -152,6 +154,19 @@ def predict(test_iter, model, args):
         submission = submission.append(batch_results, ignore_index=True)
     print(len(submission))
     submission.to_csv(args.output, index=False)
-
+    """
+    ids = []
+    for batch_idx, batch in tqdm(enumerate(test_iter)):
+        logit = model(batch.text)
+        probs = F.sigmoid(logit)
+        if args.cuda:
+            probs = probs.data.cpu()
+        ids.extend(batch.id.data)
+        if batch_idx == 0:
+            preds = probs.numpy()
+        else:
+            preds = np.vstack([preds, probs.numpy()])
+    print(len(ids))
+    return ids, preds
     
 
