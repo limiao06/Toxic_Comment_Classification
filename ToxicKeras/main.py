@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-import time
+from time import sleep
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -21,7 +21,7 @@ def get_args():
     parser.add_argument('--dropout_rate', type=int, default=0.2, help='default=0.2')
     parser.add_argument('--gpu', type=int, default=1)
     parser.add_argument('--save_path', type=str, default='', help='out model path')
-    parser.add_argument('--cell', type=str, default='LSTM', help='rnn cell: [LSTM, GRU]')
+    parser.add_argument('--cell', type=str, default='GRU', help='rnn cell: [GRU, LSTM]')
     parser.add_argument('--output', type=str, default='', help='The result output path for test mode')
     parser.add_argument('--monitor', type=str, default='val_acc', help='The monitor for model saving and earlystopping: [val_acc, val_loss]')
     parser.add_argument('--patience', type=int, default=3, help='The patience for earlystopping, default=3')
