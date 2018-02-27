@@ -46,7 +46,7 @@ def main():
     from keras import backend as K
 
     # load data and embedding
-    X_tra, X_val, y_tra, y_val, embedding_matrix, nb_words = data_loader(args)
+    X_tra, X_val, y_tra, y_val, x_test, submission, embedding_matrix, nb_words = data_loader(args)
     args.embedding_matrix = embedding_matrix
     args.vocab_size = nb_words
 

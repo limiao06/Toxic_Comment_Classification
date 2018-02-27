@@ -6,7 +6,6 @@ import pandas as pd
 from global_variables import DATA_DIR, NB_OUTPUT_CLASSES, OUTPUT_LABELS, EMBEDDING_DIR
 
 from keras.preprocessing import text, sequence
-from keras import backend as K
 from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping, CSVLogger
 
 from sklearn.model_selection import train_test_split
@@ -55,7 +54,7 @@ def data_loader(args):
         if embedding_vector is not None: embedding_matrix[i] = embedding_vector
 
     [X_tra, X_val, y_tra, y_val] = train_test_split(x_train, y_train, train_size=0.95, random_state=233)
-    return X_tra, X_val, y_tra, y_val, embedding_matrix, nb_words
+    return X_tra, X_val, y_tra, y_val, x_test, submission, embedding_matrix, nb_words
 
 
 class RocAucEvaluation(Callback):
