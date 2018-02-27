@@ -38,7 +38,7 @@ def main():
     args = get_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 
-    if not args.save_path or args.output:
+    if not args.save_path or not args.output:
         raise Exception("--save_path and --output must be set!")
 
     from utils import data_loader, RocAucEvaluation, training_callbacks
