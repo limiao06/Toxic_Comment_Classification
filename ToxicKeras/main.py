@@ -11,12 +11,12 @@ os.environ['OMP_NUM_THREADS'] = '4'
 
 def get_args():
     parser = ArgumentParser(description='Toxic model')
-    parser.add_argument('--epochs', type=int, default=5, help='default=5')
+    parser.add_argument('--epochs', type=int, default=6, help='default=5')
     parser.add_argument('--batch_size', type=int, default=128, help='default=128')
     parser.add_argument('--maxlen', type=int, default=100, help='default=100')
     parser.add_argument('--vocab_size', type=int, default=30000, help='default=30000')
-    parser.add_argument('--embedding_size', type=int, default=300, help='default=300, [50, 100, 200, 300]')
-    parser.add_argument('--hidden_size', type=int, default=80, help='default=80')
+    parser.add_argument('--embedding_size', type=int, default=200, help='default=200, [50, 100, 200, 300]')
+    parser.add_argument('--hidden_size', type=int, default=300, help='default=300')
     parser.add_argument('--lr_init', type=float, default=.001, help='default=0.001')
     parser.add_argument('--lr_fin', type=float, default=.0005, help='default=0.0005')
     parser.add_argument('--dropout_rate', type=int, default=0.2, help='default=0.2')
@@ -25,9 +25,9 @@ def get_args():
     parser.add_argument('--cell', type=str, default='GRU', help='rnn cell: [GRU, LSTM]')
     parser.add_argument('--output', type=str, default='', help='The result output path for test mode')
     parser.add_argument('--monitor', type=str, default='val_acc', help='The monitor for model saving and earlystopping: [val_acc, val_loss]')
-    parser.add_argument('--patience', type=int, default=3, help='The patience for earlystopping, default=3')
+    parser.add_argument('--patience', type=int, default=2, help='The patience for earlystopping, default=3')
     parser.add_argument('--model', type=str, default='pooled_gru', help='model: [pooled_gru]')
-    parser.add_argument('--tokenize', type=int, default=1, help="use nltk tokenize or not.")
+    parser.add_argument('--nltk', type=int, default=1, help="use nltk tokenize or not.")
 
     # cnn parameter
     parser.add_argument('--kernel-num', type=int, default=100, help='number of each kind of kernel')

@@ -19,8 +19,13 @@ def data_loader(args):
     EMBEDDING_FILE = os.path.join(EMBEDDING_DIR, 'glove.6B.%dd.txt' %(args.embedding_size))
 
     print("Loading data ... ")
-    train = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'), encoding='utf-8')
-    test = pd.read_csv(os.path.join(DATA_DIR, 'test.csv'), encoding='utf-8')
+    if args.nltk:
+        print("Using nltk tokenized data ...")
+        train = pd.read_csv(os.path.join(DATA_DIR, 'train.nltk.csv'))
+        test = pd.read_csv(os.path.join(DATA_DIR, 'test.nltk.csv'))
+    else:
+        train = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'))
+        test = pd.read_csv(os.path.join(DATA_DIR, 'test.csv'))
     submission = pd.read_csv(os.path.join(DATA_DIR, 'sample_submission.csv'))
 
     X_train = train["comment_text"].fillna("fillna").values
@@ -31,12 +36,6 @@ def data_loader(args):
     max_features = args.vocab_size
     maxlen = args.maxlen
     embed_size = args.embedding_size
-
-    if args.tokenize:
-        print("Tokenizing data set using nltk ... ")
-        from nltk.tokenize import word_tokenize
-        X_train = [" ".join(word_tokenize(s)) for s in tqdm(X_train)]
-        X_test = [" ".join(word_tokenize(s)) for s in tqdm(X_test)]
 
     tokenizer = text.Tokenizer(num_words=max_features)
     tokenizer.fit_on_texts(list(X_train) + list(X_test))
@@ -59,8 +58,8 @@ def data_loader(args):
     word_num = 0
     hit_num = 0
     for word, i in word_index.items():
+        if i >= max_features: continue
         word_num += 1
-        if i >= max_features: break
         embedding_vector = embeddings_index.get(word)
         if embedding_vector is not None: 
             embedding_matrix[i] = embedding_vector
@@ -108,3 +107,4 @@ def training_callbacks(checkpoint_path, patience, monitor, verbose=2):
     csv_logger = CSVLogger(ckpt_name + ".log")
 
     return [checkpointer, earlystop, csv_logger]
+
