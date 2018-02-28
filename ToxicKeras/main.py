@@ -27,6 +27,7 @@ def get_args():
     parser.add_argument('--monitor', type=str, default='val_acc', help='The monitor for model saving and earlystopping: [val_acc, val_loss]')
     parser.add_argument('--patience', type=int, default=3, help='The patience for earlystopping, default=3')
     parser.add_argument('--model', type=str, default='pooled_gru', help='model: [pooled_gru]')
+    parser.add_argument('--tokenize', type=int, default=1, help="use nltk tokenize or not.")
 
     # cnn parameter
     parser.add_argument('--kernel-num', type=int, default=100, help='number of each kind of kernel')

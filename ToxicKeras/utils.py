@@ -2,6 +2,8 @@ import os
 import numpy as np
 np.random.seed(42)
 import pandas as pd
+from tqdm import tqdm
+
 
 from global_variables import DATA_DIR, NB_OUTPUT_CLASSES, OUTPUT_LABELS, EMBEDDING_DIR
 
@@ -17,9 +19,8 @@ def data_loader(args):
     EMBEDDING_FILE = os.path.join(EMBEDDING_DIR, 'glove.6B.%dd.txt' %(args.embedding_size))
 
     print("Loading data ... ")
-    os.path.join(DATA_DIR, 'train.csv')
-    train = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'))
-    test = pd.read_csv(os.path.join(DATA_DIR, 'test.csv'))
+    train = pd.read_csv(os.path.join(DATA_DIR, 'train.csv'), encoding='utf-8')
+    test = pd.read_csv(os.path.join(DATA_DIR, 'test.csv'), encoding='utf-8')
     submission = pd.read_csv(os.path.join(DATA_DIR, 'sample_submission.csv'))
 
     X_train = train["comment_text"].fillna("fillna").values
@@ -30,6 +31,12 @@ def data_loader(args):
     max_features = args.vocab_size
     maxlen = args.maxlen
     embed_size = args.embedding_size
+
+    if args.tokenize:
+        print("Tokenizing data set using nltk ... ")
+        from nltk.tokenize import word_tokenize
+        X_train = [" ".join(word_tokenize(s)) for s in tqdm(X_train)]
+        X_test = [" ".join(word_tokenize(s)) for s in tqdm(X_test)]
 
     tokenizer = text.Tokenizer(num_words=max_features)
     tokenizer.fit_on_texts(list(X_train) + list(X_test))
@@ -48,11 +55,18 @@ def data_loader(args):
     word_index = tokenizer.word_index
     nb_words = min(max_features, len(word_index))
     embedding_matrix = np.random.normal(emb_mean, emb_std, (nb_words, embed_size))
-    for word, i in word_index.items():
-        if i >= max_features: continue
-        embedding_vector = embeddings_index.get(word)
-        if embedding_vector is not None: embedding_matrix[i] = embedding_vector
 
+    word_num = 0
+    hit_num = 0
+    for word, i in word_index.items():
+        word_num += 1
+        if i >= max_features: break
+        embedding_vector = embeddings_index.get(word)
+        if embedding_vector is not None: 
+            embedding_matrix[i] = embedding_vector
+            hit_num += 1
+
+    print(hit_num, word_num)
     [X_tra, X_val, y_tra, y_val] = train_test_split(x_train, y_train, train_size=0.95, random_state=233)
     return X_tra, X_val, y_tra, y_val, x_test, submission, embedding_matrix, nb_words
 
