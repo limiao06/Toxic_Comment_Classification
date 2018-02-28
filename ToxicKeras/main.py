@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from time import sleep
+from global_variables import OUTPUT_LABELS
 
 import warnings
 warnings.filterwarnings('ignore')
