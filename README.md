@@ -4,6 +4,8 @@ Codes for Kaggle Competition: https://www.kaggle.com/c/jigsaw-toxic-comment-clas
 
 Data should in directory input/
 
+Try Keras and Pytorch and DeepMoji to solve the problem.
+
 Need DeepMoji installed: https://github.com/bfelbo/DeepMoji
 
 ## DeepMoji
